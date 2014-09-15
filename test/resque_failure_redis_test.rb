@@ -56,8 +56,10 @@ describe ".each" do
       worker         = Resque::Worker.new(:test)
       queue          = "queue"
       payload        = { "class" => Object, "args" => 3 }
+      n = 0
       5.times do
-        Resque::Failure::Redis.new(exception, worker, queue, payload).save
+        Resque::Failure::Redis.new(exception, worker, queue, {'class' => Object, 'args' => "failure #{n}"}).save
+        n += 1
       end
     end
     test "should iterate over the failed tasks with ids in reverse order" do
@@ -65,21 +67,28 @@ describe ".each" do
       Resque::Failure::Redis.each(2, 3, nil, nil, 'desc') do |id, _|
         ids << id
       end
-      assert_equal([2,1,0], ids)
+      assert_equal([4,3,2], ids)
     end
     test "should allow getting single failure" do
       ids = []
+      items = []
       Resque::Failure::Redis.each(4, 1, nil, nil, 'desc') do |id, item|
         ids << id
+        items << item
       end
-      assert_equal([0], ids)
+      assert_equal([4], ids)
+      assert_equal('failure 4', items.first['payload']['args'])
     end
     test "should allow use of oversize lmit" do
       ids = []
+      items = []
       Resque::Failure::Redis.each(3, 20, nil, nil, 'desc') do |id, item|
         ids << id
+        items << item
       end
-      assert_equal([1,0], ids)
+      assert_equal([4,3], ids)
+      assert_equal('failure 4', items.first['payload']['args'])
+      assert_equal('failure 3', items.last['payload']['args'])
     end
   end
 end
