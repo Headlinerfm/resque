@@ -79,6 +79,16 @@ describe ".each" do
       assert_equal([4], ids)
       assert_equal('failure 4', items.first['payload']['args'])
     end
+    test "should allow getting single failure from the middle of the list" do
+      ids = []
+      items = []
+      Resque::Failure::Redis.each(2, 1, nil, nil, 'desc') do |id, item|
+        ids << id
+        items << item
+      end
+      assert_equal([2], ids)
+      assert_equal('failure 2', items.first['payload']['args'])
+    end
     test "should allow use of oversize lmit" do
       ids = []
       items = []

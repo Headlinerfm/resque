@@ -51,7 +51,8 @@ module Resque
         all_items.each_with_index do |item, i|
           if !class_name || (item['payload'] && item['payload']['class'] == class_name)
             if reversed
-              id = (queue_size - 1) - i
+              m = [offset + limit, queue_size].min
+              id = m - i - 1
             else
               id = offset + i
             end
