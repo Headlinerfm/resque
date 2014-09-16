@@ -64,6 +64,13 @@ describe ".each" do
     end
     test "should iterate over the failed tasks with ids in reverse order" do
       ids = []
+      Resque::Failure::Redis.each(0, 20, nil, nil, 'desc') do |id, _|
+        ids << id
+      end
+      assert_equal([4,3,2,1,0], ids)
+    end
+    test "should work with an offset" do
+      ids = []
       Resque::Failure::Redis.each(2, 3, nil, nil, 'desc') do |id, _|
         ids << id
       end
