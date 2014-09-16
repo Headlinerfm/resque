@@ -47,12 +47,11 @@ module Resque
           reversed = true
         end
 
-        queue_size = self.count
+        reversed_offset = [offset + limit, self.count].min - 1
         all_items.each_with_index do |item, i|
           if !class_name || (item['payload'] && item['payload']['class'] == class_name)
             if reversed
-              m = [offset + limit, queue_size].min
-              id = m - i - 1
+              id = reversed_offset - i
             else
               id = offset + i
             end
