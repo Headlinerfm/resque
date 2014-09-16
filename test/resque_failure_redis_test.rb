@@ -26,26 +26,60 @@ describe ".each" do
       exception      = StandardError.exception("error")
       worker         = Resque::Worker.new(:test)
       queue          = "queue"
-      payload        = { "class" => Object, "args" => 3 }
+      n              = 0
       5.times do
-        Resque::Failure::Redis.new(exception, worker, queue, payload).save
+        Resque::Failure::Redis.new(exception, worker, queue, {'class' => Object, 'args' => "failure #{n}"}).save
+        n += 1
       end
     end
 
     test "should iterate over the failed tasks with ids in order" do
       ids = []
-      Resque::Failure::Redis.each(0, 3, :failed, nil, 'asc') do |id, _|
+      Resque::Failure::Redis.each(0, 20, nil, nil, 'asc') do |id, _|
+        ids << id
+      end
+      assert_equal([0,1,2,3,4], ids)
+    end
+    test "shold work with a below-queue-size limit" do
+      ids = []
+      Resque::Failure::Redis.each(0, 3, nil, nil, 'asc') do |id, _|
         ids << id
       end
       assert_equal([0,1,2], ids)
     end
-
-    test "should allow getting single failure" do
+    test "shold work with a below-queue-size limit and offset" do
       ids = []
-      Resque::Failure::Redis.each(0, 1, nil, nil, 'asc') do |id, item|
+      Resque::Failure::Redis.each(1, 3, nil, nil, 'asc') do |id, _|
         ids << id
       end
+      assert_equal([1,2,3], ids)
+    end
+    test "shold work with an above-queue-size limit and offset" do
+      ids = []
+      Resque::Failure::Redis.each(2, 20, nil, nil, 'asc') do |id, _|
+        ids << id
+      end
+      assert_equal([2,3,4], ids)
+    end
+    test "should allow getting single failure" do
+      ids = []
+      items = []
+      Resque::Failure::Redis.each(0, 1, nil, nil, 'asc') do |id, item|
+        ids << id
+        items << item
+      end
       assert_equal([0], ids)
+      assert_equal('failure 0', items.first['payload']['args'])
+    end
+    test "should allow getting single failure from the middle of the list" do
+      ids = []
+      items = []
+      Resque::Failure::Redis.each(2, 1, nil, nil, 'asc') do |id, item|
+        ids << id
+        items << item
+      end
+      assert_equal([2], ids)
+      assert_equal('failure 2', items.first['payload']['args'])
     end
   end
 
@@ -55,8 +89,7 @@ describe ".each" do
       exception      = StandardError.exception("error")
       worker         = Resque::Worker.new(:test)
       queue          = "queue"
-      payload        = { "class" => Object, "args" => 3 }
-      n = 0
+      n              = 0
       5.times do
         Resque::Failure::Redis.new(exception, worker, queue, {'class' => Object, 'args' => "failure #{n}"}).save
         n += 1
@@ -69,9 +102,23 @@ describe ".each" do
       end
       assert_equal([4,3,2,1,0], ids)
     end
-    test "should work with an offset" do
+    test "should work with a below-queue-size limit" do
+      ids = []
+      Resque::Failure::Redis.each(0, 3, nil, nil, 'desc') do |id, _|
+        ids << id
+      end
+      assert_equal([2,1,0], ids)
+    end
+    test "should work with a below-queue-size limit and offset" do
       ids = []
       Resque::Failure::Redis.each(2, 3, nil, nil, 'desc') do |id, _|
+        ids << id
+      end
+      assert_equal([4,3,2], ids)
+    end
+    test "should work with an above-queue-size limit and offset" do
+      ids = []
+      Resque::Failure::Redis.each(2, 20, nil, nil, 'desc') do |id, _|
         ids << id
       end
       assert_equal([4,3,2], ids)
