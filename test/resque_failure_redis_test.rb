@@ -22,6 +22,7 @@ describe ".each" do
 
   context 'order ASC' do
     setup do
+      Resque.redis.flushall
       exception      = StandardError.exception("error")
       worker         = Resque::Worker.new(:test)
       queue          = "queue"
@@ -38,15 +39,47 @@ describe ".each" do
       end
       assert_equal([0,1,2], ids)
     end
+
+    test "should allow getting single failure" do
+      ids = []
+      Resque::Failure::Redis.each(0, 1, nil, nil, 'asc') do |id, item|
+        ids << id
+      end
+      assert_equal([0], ids)
+    end
   end
 
   context 'order desc' do
+    setup do
+      Resque.redis.flushall
+      exception      = StandardError.exception("error")
+      worker         = Resque::Worker.new(:test)
+      queue          = "queue"
+      payload        = { "class" => Object, "args" => 3 }
+      5.times do
+        Resque::Failure::Redis.new(exception, worker, queue, payload).save
+      end
+    end
     test "should iterate over the failed tasks with ids in reverse order" do
       ids = []
-      Resque::Failure::Redis.each(2, 3, :failed, nil, 'desc') do |id, _|
+      Resque::Failure::Redis.each(2, 3, nil, nil, 'desc') do |id, _|
         ids << id
       end
-      assert_equal([4,3,2], ids)
+      assert_equal([2,1,0], ids)
+    end
+    test "should allow getting single failure" do
+      ids = []
+      Resque::Failure::Redis.each(4, 1, nil, nil, 'desc') do |id, item|
+        ids << id
+      end
+      assert_equal([0], ids)
+    end
+    test "should allow use of oversize lmit" do
+      ids = []
+      Resque::Failure::Redis.each(3, 20, nil, nil, 'desc') do |id, item|
+        ids << id
+      end
+      assert_equal([1,0], ids)
     end
   end
 end
